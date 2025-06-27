@@ -1,138 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Movie App</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie Mafia</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 10px;
-      background: #111;
-      color: white;
+      font-family: sans-serif;
+      background-color: #111;
+      color: #fff;
     }
 
-    h1 {
-      text-align: center;
+    header {
+      padding: 16px;
+      background: #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 20px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+    }
+
+    .filters select {
+      padding: 4px;
     }
 
     .grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
+      gap: 12px;
+      padding: 12px;
     }
 
-    .movie-card {
-      background: #222;
-      border-radius: 10px;
+    .card {
+      background: #1e1e1e;
+      border-radius: 12px;
       overflow: hidden;
       position: relative;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.6);
     }
 
-    .movie-card img {
+    .card img {
       width: 100%;
-      height: 200px;
-      object-fit: cover;
+      height: auto;
+      display: block;
     }
 
-    .info {
-      padding: 10px;
-    }
-
-    .title {
-      font-size: 16px;
-      font-weight: bold;
-    }
-
-    .details {
-      font-size: 12px;
-      margin-top: 4px;
-      color: #ccc;
-    }
-
-    .fav-btn {
+    .card .fav {
       position: absolute;
       top: 8px;
       right: 8px;
       background: red;
       color: white;
-      border: none;
+      padding: 4px 6px;
       border-radius: 50%;
-      width: 30px;
-      height: 30px;
       cursor: pointer;
-      font-size: 18px;
     }
 
-    .download-btn {
-      display: block;
-      margin: 8px auto 10px;
-      padding: 6px 10px;
-      background: #00c853;
-      color: white;
+    .card .info {
+      padding: 8px;
+    }
+
+    .card .info h2 {
+      font-size: 16px;
+      margin: 0 0 4px;
+    }
+
+    .card .info p {
+      margin: 2px 0;
+      font-size: 12px;
+    }
+
+    .card .info button {
+      margin-top: 6px;
+      width: 100%;
+      background: #fff;
+      color: #000;
       border: none;
+      padding: 6px;
       border-radius: 4px;
-      text-align: center;
       cursor: pointer;
-      text-decoration: none;
     }
   </style>
 </head>
 <body>
-  <h1>🎬 Movie App</h1>
-  <div class="grid" id="movies"></div>
+  <header>
+    <h1>🎬 Movie Mafia</h1>
+    <div class="filters">
+      <select id="categoryFilter">
+        <option value="">All Categories</option>
+      </select>
+      <select id="sortBy">
+        <option value="latest">Latest</option>
+        <option value="rating">Top Rated</option>
+        <option value="duration">Duration</option>
+      </select>
+    </div>
+  </header>
 
-  <script>
-    const movies = [
-      {
-        title: "Spider-Man",
-        poster: "https://i.imgur.com/3fJ1P48.jpeg",
-        year: 2021,
-        duration: 145,
-        rating: 4.5,
-        category: "Action",
-        download: "#"
-      },
-      {
-        title: "John Wick 4",
-        poster: "https://i.imgur.com/Cj3D9TV.jpeg",
-        year: 2023,
-        duration: 169,
-        rating: 4.8,
-        category: "Thriller",
-        download: "#"
-      },
-      {
-        title: "Avatar 2",
-        poster: "https://i.imgur.com/J4xq8fI.jpeg",
-        year: 2022,
-        duration: 192,
-        rating: 4.6,
-        category: "Sci-Fi",
-        download: "#"
+  <div class="grid" id="movieGrid">Loading movies...</div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDmLbw1q4vGskB-8oyEi6BCga-VD3PO6p4",
+      authDomain: "movie-9d80a.firebaseapp.com",
+      databaseURL: "https://movie-9d80a-default-rtdb.firebaseio.com",
+      projectId: "movie-9d80a",
+      storageBucket: "movie-9d80a.firebasestorage.app",
+      messagingSenderId: "363745619938",
+      appId: "1:363745619938:web:0c123ac8506236d62953bb",
+      measurementId: "G-00R54VC3MD"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const movieGrid = document.getElementById('movieGrid');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const sortBy = document.getElementById('sortBy');
+
+    async function loadMovies() {
+      movieGrid.innerHTML = "Loading...";
+      const snapshot = await getDocs(collection(db, "movies"));
+      let movies = [];
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        data.id = doc.id;
+        movies.push(data);
+      });
+
+      if (movies.length === 0) {
+        // Fallback dummy data
+        movies = [
+          {
+            title: "John Wick 4",
+            poster: "https://image.tmdb.org/t/p/w500/dpWMLGkj3eT98xrpyh2Bqa0zU8I.jpg",
+            year: 2023,
+            duration: 169,
+            rating: 7.9,
+            category: "Action",
+            download: "#"
+          },
+          {
+            title: "Avatar 2",
+            poster: "https://image.tmdb.org/t/p/w500/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg",
+            year: 2022,
+            duration: 192,
+            rating: 7.6,
+            category: "Sci-Fi",
+            download: "#"
+          },
+          {
+            title: "Spiderman",
+            poster: "https://image.tmdb.org/t/p/w500/5WeDg1eL5d1ypIE6mzUbyJ3Q9Bq.jpg",
+            year: 2021,
+            duration: 148,
+            rating: 8.2,
+            category: "Marvel",
+            download: "#"
+          }
+        ];
       }
-    ];
 
-    const container = document.getElementById("movies");
+      renderCategories(movies);
+      renderMovies(movies);
+    }
 
-    movies.forEach(movie => {
-      container.innerHTML += `
-        <div class="movie-card">
-          <button class="fav-btn">♥</button>
+    function renderCategories(movies) {
+      const uniqueCats = [...new Set(movies.map(m => m.category))];
+      categoryFilter.innerHTML = `<option value="">All Categories</option>`;
+      uniqueCats.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        categoryFilter.appendChild(opt);
+      });
+    }
+
+    function renderMovies(movies) {
+      const selectedCat = categoryFilter.value;
+      const sort = sortBy.value;
+
+      let filtered = movies;
+
+      if (selectedCat) {
+        filtered = filtered.filter(m => m.category === selectedCat);
+      }
+
+      if (sort === 'rating') {
+        filtered.sort((a, b) => b.rating - a.rating);
+      } else if (sort === 'duration') {
+        filtered.sort((a, b) => b.duration - a.duration);
+      } else {
+        filtered.sort((a, b) => b.year - a.year);
+      }
+
+      movieGrid.innerHTML = filtered.map(movie => `
+        <div class="card">
+          <div class="fav">❤️</div>
           <img src="${movie.poster}" alt="${movie.title}" />
           <div class="info">
-            <div class="title">${movie.title}</div>
-            <div class="details">
-              ${movie.year} • ${movie.duration} min<br/>
-              Rating: ⭐ ${movie.rating} • ${movie.category}
-            </div>
-            <a href="${movie.download}" class="download-btn">Download</a>
+            <h2>${movie.title}</h2>
+            <p>⭐ ${movie.rating} | ${movie.duration} min</p>
+            <p>📅 ${movie.year} | 🎬 ${movie.category}</p>
+            <button onclick="window.open('${movie.download || "#"}')">Download</button>
           </div>
         </div>
-      `;
-    });
+      `).join('');
+    }
+
+    categoryFilter.addEventListener('change', loadMovies);
+    sortBy.addEventListener('change', loadMovies);
+
+    loadMovies();
   </script>
 </body>
 </html>
