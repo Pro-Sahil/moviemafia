@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Panel - Movie App</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0; background: #111;
+    color: #eee;
+  }
+  header {
+    background: #222;
+    padding: 15px;
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+  main {
+    padding: 10px;
+    max-width: 900px;
+    margin: auto;
+  }
+  form {
+    background: #222;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+  form input, form select {
+    width: 100%;
+    padding: 8px;
+    margin: 6px 0 12px 0;
+    border-radius: 6px;
+    border: none;
+    font-size: 1em;
+    box-sizing: border-box;
+  }
+  form label {
+    font-weight: bold;
+  }
+  form button {
+    background: #e50914;
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 40px;
+  }
+  th, td {
+    padding: 8px;
+    border-bottom: 1px solid #444;
+    text-align: left;
+  }
+  th {
+    background: #222;
+  }
+  tr:hover {
+    background: #222;
+  }
+  button.edit, button.delete {
+    background: none;
+    border: none;
+    color: #e50914;
+    cursor: pointer;
+    font-weight: bold;
+    margin-right: 10px;
+  }
+  .btn-export, .btn-import {
+    background: #444;
+    color: #eee;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    margin: 5px;
+  }
+  input[type="file"] {
+    display: none;
+  }
+</style>
+</head>
+<body>
+<header>Admin Panel - Movie App</header>
+<main>
+  <form id="movieForm">
+    <input type="hidden" id="movieId" />
+    <label for="title">Title</label>
+    <input id="title" type="text" required />
+
+    <label for="year">Year</label>
+    <input id="year" type="number" min="1900" max="2100" required />
+
+    <label for="duration">Duration (minutes)</label>
+    <input id="duration" type="number" min="1" required />
+
+    <label for="rating">Rating (0 to 10)</label>
+    <input id="rating" type="number" step="0.1" min="0" max="10" required />
+
+    <label for="category">Category</label>
+    <select id="category" required>
+      <option value="">-- Select Category --</option>
+      <option value="Action">Action</option>
+      <option value="Adventure">Adventure</option>
+      <option value="Sci-Fi">Sci-Fi</option>
+      <option value="Drama">Drama</option>
+      <option value="Comedy">Comedy</option>
+      <option value="Horror">Horror</option>
+      <option value="Thriller">Thriller</option>
+      <option value="AddNewCategory">Add new category</option>
+    </select>
+
+    <label for="posterUrl">Poster Image URL</label>
+    <input id="posterUrl" type="url" required />
+
+    <label for="movieUrl">Movie Download URL</label>
+    <input id="movieUrl" type="url" required />
+
+    <button type="submit" id="submitBtn">Add Movie</button>
+    <button type="button" id="cancelEditBtn" style="display:none; margin-left: 10px;">Cancel Edit</button>
+  </form>
+
+  <h2>All Movies</h2>
+  <table id="moviesTable">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Year</th>
+        <th>Duration (min)</th>
+        <th>Rating</th>
+        <th>Category</th>
+        <th>Poster</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div>
+    <button class="btn-export" id="exportBtn">Export JSON</button>
+    <button class="btn-import" id="importBtn">Import JSON</button>
+    <input type="file" id="importFile" accept=".json" />
+  </div>
+</main>
+
+<script>
+  const movieForm = document.getElementById("movieForm");
+  const moviesTableBody = document.querySelector("#moviesTable tbody");
+  const submitBtn = document.getElementById("submitBtn");
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const importBtn = document.getElementById("importBtn");
+  const importFile = document.getElementById("importFile");
+  const categorySelect = document.getElementById("category");
+
+  let movies = JSON.parse(localStorage.getItem("moviesData")) || [];
+
+  function saveMovies() {
+    localStorage.setItem("moviesData", JSON.stringify(movies));
+  }
+
+  function clearForm() {
+    movieForm.reset();
+    document.getElementById("movieId").value = "";
+    submitBtn.textContent = "Add Movie";
+    cancelEditBtn.style.display = "none";
+  }
+
+  function renderMovies() {
+    moviesTableBody.innerHTML = "";
+    if (movies.length === 0) {
+      moviesTableBody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>No movies added yet.</td></tr>";
+      return;
+    }
+    movies.forEach((movie, index) => {
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${movie.title}</td>
+        <td>${movie.year}</td>
+        <td>${movie.duration}</td>
+        <td>${movie.rating}</td>
+        <td>${movie.category}</td>
+        <td><img src="${movie.posterUrl}" alt="${movie.title}" style="width:50px; height:auto; border-radius:4px;" /></td>
+        <td>
+          <button class="edit" data-index="${index}">Edit</button>
+          <button class="delete" data-index="${index}">Delete</button>
+        </td>
+      `;
+      moviesTableBody.appendChild(tr);
+    });
+
+    document.querySelectorAll(".edit").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const i = e.target.dataset.index;
+        startEdit(i);
+      });
+    });
+    document.querySelectorAll(".delete").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const i = e.target.dataset.index;
+        deleteMovie(i);
+      });
+    });
+  }
+
+  function startEdit(index) {
+    const movie = movies[index];
+    document.getElementById("movieId").value = index;
+    document.getElementById("title").value = movie.title;
+    document.getElementById("year").value = movie.year;
+    document.getElementById("duration").value = movie.duration;
+    document.getElementById("rating").value = movie.rating;
+    document.getElementById("category").value = movie.category;
+    document.getElementById("posterUrl").value = movie.posterUrl;
+    document.getElementById("movieUrl").value = movie.movieUrl;
+
+    submitBtn.textContent = "Update Movie";
+    cancelEditBtn.style.display = "inline-block";
+  }
+
+  function deleteMovie(index) {
+    if(confirm("Are you sure you want to delete this movie?")) {
+      movies.splice(index,1);
+      saveMovies();
+      renderMovies();
+    }
+  }
+
+  movieForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const movieId = document.getElementById("movieId").value;
+
+    const newMovie = {
+      title: document.getElementById("title").value.trim(),
+      year: parseInt(document.getElementById("year").value),
+      duration: parseInt(document.getElementById("duration").value),
+      rating: parseFloat(document.getElementById("rating").value),
+      category: document.getElementById("category").value,
+      posterUrl: document.getElementById("posterUrl").value.trim(),
+      movieUrl: document.getElementById("movieUrl").value.trim(),
+    };
+
+    if(newMovie.category === "AddNewCategory") {
+      alert("Please select or add a valid category.");
+      return;
+    }
+
+    if(movieId === "") {
+      movies.push(newMovie);
+    } else {
+      movies[movieId] = newMovie;
+    }
+    saveMovies();
+    renderMovies();
+    clearForm();
+  });
+
+  cancelEditBtn.addEventListener("click", () => {
+    clearForm();
+  });
+
+  exportBtn.addEventListener("click", () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(movies, null, 2));
+    const a = document.createElement("a");
+    a.href = dataStr;
+    a.download = "movies-data.json";
+    a.click();
+  });
+
+  importBtn.addEventListener("click", () => {
+    importFile.click();
+  });
+
+  importFile.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const importedData = JSON.parse(e.target.result);
+        if(Array.isArray(importedData)) {
+          movies = importedData;
+          saveMovies();
+          renderMovies();
+          alert("Movies imported successfully!");
+        } else {
+          alert("Invalid JSON file format!");
+        }
+      } catch {
+        alert("Failed to parse JSON file!");
+      }
+    };
+    reader.readAsText(file);
+    importFile.value = ""; // reset input
+  });
+
+  categorySelect.addEventListener("change", () => {
+    if (categorySelect.value === "AddNewCategory") {
+      const newCategory = prompt("Enter new category name:");
+      if (newCategory && newCategory.trim() !== "") {
+        const option = document.createElement("option");
+        option.value = newCategory.trim();
+        option.textContent = newCategory.trim();
+
+        categorySelect.insertBefore(option, categorySelect.querySelector('option[value="AddNewCategory"]'));
+        categorySelect.value = newCategory.trim();
+      } else {
+        categorySelect.value = "";
+      }
+    }
+  });
+
+  renderMovies();
+</script>
+</body>
+</html>
